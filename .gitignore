@@ -7,8 +7,3 @@ build/
 dist/
 *.egg-info/
 .env
-
-# Ad-hoc testnet validation scripts that perform live trading or bulk auth.
-tests/e2e_agent_authorization_limits.py
-tests/e2e_agent_revoke_after_indexed.py
-tests/e2e_exchange_behaviors.py
