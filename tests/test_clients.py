@@ -184,6 +184,37 @@ class ClientTests(unittest.TestCase):
         )
         self.assertIn("signature", body)
 
+    def test_withdraw_includes_withdraw_sequence_in_action_and_eip712(self):
+        from afx import AfxClient
+
+        captured = {}
+
+        def fake_sign_master_payload(wallet, environment, primary_type, type_fields, message):
+            captured["primary_type"] = primary_type
+            captured["type_fields"] = type_fields
+            captured["message"] = message
+            return {"r": "0x1", "s": "0x2", "v": 27}
+
+        client = AfxClient.from_env(testnet=True, transport=self.transport)
+        with patch("afx.exchange.sign_master_payload", fake_sign_master_payload):
+            client.exchange.withdraw(
+                destination="0x0000000000000000000000000000000000000001",
+                amount="3.5",
+                withdraw_sequence=789,
+                nonce=123,
+                expiry_after=456,
+            )
+
+        _, body = self.transport.post_calls[-1]
+        self.assertEqual(body["action"]["withdrawSequence"], 789)
+        self.assertEqual(captured["primary_type"], "Withdraw")
+        self.assertIn(
+            {"name": "withdrawSequence", "type": "uint64"},
+            captured["type_fields"],
+        )
+        self.assertEqual(captured["message"]["withdrawSequence"], 789)
+        self.assertEqual(captured["message"]["nonce"], 123)
+
     def test_approve_agent_has_no_referral_code_parameter(self):
         from afx import ExchangeClient
 

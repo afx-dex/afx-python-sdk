@@ -30,6 +30,7 @@ WITHDRAW_TYPE = [
     {"name": "dexChain", "type": "string"},
     {"name": "destination", "type": "address"},
     {"name": "amount", "type": "string"},
+    {"name": "withdrawSequence", "type": "uint64"},
     {"name": "nonce", "type": "uint64"},
     {"name": "expiryAfter", "type": "uint64"},
 ]
