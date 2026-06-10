@@ -59,7 +59,9 @@ Agent-signed actions serialize with the vendored generated protobuf module `afx.
 
 `expiryAfter` is sent and signed as a millisecond timestamp. `validitySeconds` remains a duration in seconds, so one hour is `3600`.
 
-For market orders, `slippage_pct` is a decimal ratio string such as `"0.001"`. TP/SL orders use the Python parameter `reduce_only_option`, for example `"TP_FROM_POSITION"` or `"SL_FROM_POSITION"`; the SDK converts it to the server action key `reduceOnlyOption` while keeping the generated protobuf field correct.
+For market orders, `slippage_pct` is a decimal ratio string such as `"0.001"`. TP/SL orders use the Python parameter `reduce_only_option`, for example `"TP_FROM_POSITION"` or `"SL_FROM_POSITION"`; the SDK keeps the generated protobuf field correct and converts the action payload to the server field used by each exchange action.
+
+`ord_type` request values should be active order types such as `"LIMIT"` or `"MARKET"`. The generated protobuf enum also contains the default `"NONE"` value and display-only values used by query/stream responses: `"MARKET_LIQ_SELLOFF"`, `"LIMIT_LIQ_SELLOFF"`, `"ADL"`, and `"LIQUIDATION"`. Do not pass those values to order request methods.
 
 ## Examples
 
@@ -68,6 +70,8 @@ Every public SDK feature has an example under `examples/`:
 ```bash
 PYTHONPATH=. python3 examples/info/get_products.py
 PYTHONPATH=. python3 examples/exchange/place_order.py
+PYTHONPATH=. python3 examples/exchange/replace_order.py
+PYTHONPATH=. python3 examples/exchange/place_bracket_order.py
 PYTHONPATH=. python3 examples/websocket/subscribe_ticker.py
 ```
 

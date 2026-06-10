@@ -21,6 +21,8 @@ EXPECTED_EXAMPLES = {
     "examples/exchange/withdraw.py",
     "examples/exchange/place_order.py",
     "examples/exchange/place_tp_sl_orders.py",
+    "examples/exchange/replace_order.py",
+    "examples/exchange/place_bracket_order.py",
     "examples/exchange/cancel_order.py",
     "examples/exchange/cancel_all.py",
     "examples/exchange/set_leverage.py",

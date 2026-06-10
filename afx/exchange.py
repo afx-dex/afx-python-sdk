@@ -151,23 +151,87 @@ class ExchangeClient:
             "cl_ord_id": cl_ord_id,
             "parent_ord_id": parent_ord_id,
         }
-        action_order = {
-            "symbolCode": symbol_code,
-            "ordPx": str(px),
-            "ordQty": str(qty),
-            "ordType": ord_type,
-            "ordSide": side,
-            "timeInForce": tif,
-        }
-        _optional(action_order, "reduceOnlyOption", reduce_only_option)
-        _optional(action_order, "triggerPx", trigger_px)
-        _optional(action_order, "tpslTriggerType", trigger_type)
-        _optional(action_order, "slippagePct", slippage_pct)
-        _optional(action_order, "clOrdId", cl_ord_id)
-        _optional(action_order, "parentOrdId", parent_ord_id)
+        action_order = _action_order(order, reduce_only_key="reduceOnlyOption")
         return self._agent_request(
             {"type": "placeOrder", "orders": [action_order]},
             protobuf.place_orders([order]),
+            nonce=nonce,
+            expiry_after=expiry_after,
+            vault_address=vault_address,
+        )
+
+    def replace_order(
+        self,
+        symbol_code,
+        px,
+        qty,
+        ord_id=None,
+        cl_ord_id=None,
+        side="BUY",
+        ord_type="LIMIT",
+        tif="GTC",
+        reduce_only_option=None,
+        trigger_px=None,
+        trigger_type=None,
+        slippage_pct=None,
+        parent_ord_id=None,
+        nonce=None,
+        expiry_after=None,
+        vault_address=None,
+    ):
+        if ord_id is None and cl_ord_id is None:
+            raise ValueError("ord_id or cl_ord_id is required")
+        order = {
+            "symbol_code": symbol_code,
+            "px": px,
+            "qty": qty,
+            "side": side,
+            "ord_type": ord_type,
+            "tif": tif,
+            "reduce_only_option": reduce_only_option,
+            "trigger_px": trigger_px,
+            "trigger_type": trigger_type,
+            "slippage_pct": slippage_pct,
+            "cl_ord_id": cl_ord_id,
+            "parent_ord_id": parent_ord_id,
+            "ord_id": ord_id,
+        }
+        action = {"type": "replaceOrder"}
+        action.update(_action_order(order, reduce_only_key="reduceOnly"))
+        _optional(action, "ordId", ord_id)
+        return self._agent_request(
+            action,
+            protobuf.replace_order(order),
+            nonce=nonce,
+            expiry_after=expiry_after,
+            vault_address=vault_address,
+        )
+
+    def place_bracket_order(
+        self,
+        main_order,
+        take_profit_order=None,
+        stop_loss_order=None,
+        nonce=None,
+        expiry_after=None,
+        vault_address=None,
+    ):
+        orders = [
+            order
+            for order in (main_order, take_profit_order, stop_loss_order)
+            if order is not None
+        ]
+        if len(orders) not in (2, 3):
+            raise ValueError("place_bracket_order requires 2 or 3 orders")
+        return self._agent_request(
+            {
+                "type": "placeBracketOrder",
+                "orders": [
+                    _action_order(order, reduce_only_key="reduceOnly")
+                    for order in orders
+                ],
+            },
+            protobuf.place_bracket_order(orders),
             nonce=nonce,
             expiry_after=expiry_after,
             vault_address=vault_address,
@@ -397,3 +461,21 @@ class ExchangeClient:
 def _optional(target, key, value):
     if value is not None:
         target[key] = value
+
+
+def _action_order(order, reduce_only_key):
+    action_order = {
+        "symbolCode": order["symbol_code"],
+        "ordPx": str(order["px"]),
+        "ordQty": str(order["qty"]),
+        "ordType": order["ord_type"],
+        "ordSide": order["side"],
+        "timeInForce": order["tif"],
+    }
+    _optional(action_order, reduce_only_key, order.get("reduce_only_option"))
+    _optional(action_order, "triggerPx", order.get("trigger_px"))
+    _optional(action_order, "tpslTriggerType", order.get("trigger_type"))
+    _optional(action_order, "slippagePct", order.get("slippage_pct"))
+    _optional(action_order, "clOrdId", order.get("cl_ord_id"))
+    _optional(action_order, "parentOrdId", order.get("parent_ord_id"))
+    return action_order

@@ -19,6 +19,14 @@ enum OrdType {
   ORD_TYPE_NONE       = 0;
   LIMIT               = 1;
   MARKET              = 2;
+  MARKET_LIQ_SELLOFF  = 3;
+  LIMIT_LIQ_SELLOFF   = 4;
+  STOP_LIMIT          = 5;
+  STOP_MARKET         = 6;
+  TAKE_PROFIT_LIMIT   = 7;
+  TAKE_PROFIT_MARKET  = 8;
+  ADL                 = 50;
+  LIQUIDATION         = 51;
 }
 
 enum OrdSide {
@@ -78,6 +86,28 @@ message MsgPlaceOrder {
 
 message MsgPlaceOrders {
   repeated MsgPlaceOrder orders = 1;
+}
+
+message MsgReplaceOrder {
+  int64  cl_ord_id                          = 1;
+  int64  symbol_code                        = 2;
+  string ord_px                             = 3;
+  string ord_qty                            = 4;
+  string trigger_px                         = 5;
+  OrdType                   ord_type        = 6;
+  OrdSide                   ord_side        = 7;
+  OrdTIF                    time_in_force   = 8;
+  ReduceOnlyOption          reduce_only_option = 9;
+  int64  parent_ord_id                      = 10;
+  ConditionalOrdTriggerType tpsl_trigger_type = 11;
+  string slippage_pct                       = 12;
+  int64  ord_id                             = 13;
+}
+
+message MsgPlaceBracketOrder {
+  MsgPlaceOrder main_order        = 1;
+  MsgPlaceOrder take_profit_order = 2;
+  MsgPlaceOrder stop_loss_order   = 3;
 }
 
 message MsgCancelOrder {

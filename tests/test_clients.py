@@ -140,6 +140,109 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(order["reduceOnlyOption"], "TP_FROM_POSITION")
         self.assertNotIn("reduce_only_option", order)
 
+    def test_replace_order_builds_signed_exchange_request(self):
+        from afx import AfxClient
+
+        client = AfxClient.from_env(testnet=True, transport=self.transport)
+        client.exchange.replace_order(
+            symbol_code=1,
+            px="50100",
+            qty="0.002",
+            side="SELL",
+            ord_type="LIMIT",
+            tif="GTC",
+            ord_id=88,
+            cl_ord_id=77,
+            nonce=125,
+        )
+
+        path, body = self.transport.post_calls[-1]
+        self.assertEqual(path, "/api/v1/exchange")
+        self.assertEqual(body["nonce"], 125)
+        self.assertEqual(
+            body["action"],
+            {
+                "type": "replaceOrder",
+                "symbolCode": 1,
+                "ordPx": "50100",
+                "ordQty": "0.002",
+                "ordType": "LIMIT",
+                "ordSide": "SELL",
+                "timeInForce": "GTC",
+                "ordId": 88,
+                "clOrdId": 77,
+            },
+        )
+        self.assertIn("signature", body)
+
+    def test_replace_order_requires_existing_order_identifier(self):
+        from afx import AfxClient
+
+        client = AfxClient.from_env(testnet=True, transport=self.transport)
+
+        with self.assertRaises(ValueError):
+            client.exchange.replace_order(
+                symbol_code=1,
+                px="50100",
+                qty="0.002",
+                side="SELL",
+                ord_type="LIMIT",
+                tif="GTC",
+            )
+
+    def test_place_bracket_order_builds_signed_exchange_request(self):
+        from afx import AfxClient
+
+        client = AfxClient.from_env(testnet=True, transport=self.transport)
+        client.exchange.place_bracket_order(
+            main_order={
+                "symbol_code": 1,
+                "px": "50000",
+                "qty": "0.001",
+                "side": "BUY",
+                "ord_type": "LIMIT",
+                "tif": "GTC",
+                "cl_ord_id": 11,
+            },
+            take_profit_order={
+                "symbol_code": 1,
+                "px": "55000",
+                "qty": "0.001",
+                "trigger_px": "55000",
+                "side": "SELL",
+                "ord_type": "LIMIT",
+                "tif": "GTC",
+                "reduce_only_option": "TP_FROM_POSITION",
+                "trigger_type": "LAST_PRICE",
+                "cl_ord_id": 12,
+            },
+            stop_loss_order={
+                "symbol_code": 1,
+                "px": "0",
+                "qty": "0.001",
+                "trigger_px": "45000",
+                "side": "SELL",
+                "ord_type": "MARKET",
+                "tif": "IOC",
+                "reduce_only_option": "SL_FROM_POSITION",
+                "trigger_type": "LAST_PRICE",
+                "slippage_pct": "0.01",
+                "cl_ord_id": 13,
+            },
+            nonce=126,
+        )
+
+        path, body = self.transport.post_calls[-1]
+        self.assertEqual(path, "/api/v1/exchange")
+        self.assertEqual(body["nonce"], 126)
+        self.assertEqual(body["action"]["type"], "placeBracketOrder")
+        self.assertEqual(len(body["action"]["orders"]), 3)
+        self.assertEqual(body["action"]["orders"][0]["clOrdId"], 11)
+        self.assertEqual(body["action"]["orders"][1]["reduceOnly"], "TP_FROM_POSITION")
+        self.assertEqual(body["action"]["orders"][2]["reduceOnly"], "SL_FROM_POSITION")
+        self.assertNotIn("reduceOnlyOption", body["action"]["orders"][1])
+        self.assertIn("signature", body)
+
     def test_master_signed_request_uses_same_outer_nonce_and_expiry(self):
         from afx import AfxClient
 

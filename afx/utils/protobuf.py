@@ -1,6 +1,19 @@
 from afx.protos import dex_pb2
 
-ORD_TYPE = {"LIMIT": dex_pb2.LIMIT, "MARKET": dex_pb2.MARKET}
+ORD_TYPE = {
+    "LIMIT": dex_pb2.LIMIT,
+    "MARKET": dex_pb2.MARKET,
+    "STOP_LIMIT": dex_pb2.STOP_LIMIT,
+    "STOP_MARKET": dex_pb2.STOP_MARKET,
+    "TAKE_PROFIT_LIMIT": dex_pb2.TAKE_PROFIT_LIMIT,
+    "TAKE_PROFIT_MARKET": dex_pb2.TAKE_PROFIT_MARKET,
+}
+DISPLAY_ONLY_ORD_TYPE = {
+    "MARKET_LIQ_SELLOFF": dex_pb2.MARKET_LIQ_SELLOFF,
+    "LIMIT_LIQ_SELLOFF": dex_pb2.LIMIT_LIQ_SELLOFF,
+    "ADL": dex_pb2.ADL,
+    "LIQUIDATION": dex_pb2.LIQUIDATION,
+}
 ORD_SIDE = {
     "BUY": dex_pb2.BUY,
     "SELL": dex_pb2.SELL,
@@ -14,11 +27,13 @@ ORD_TIF = {
     "POST_ONLY": dex_pb2.POST_ONLY,
 }
 REDUCE_ONLY_OPTION = {
+    "NONE": dex_pb2.REDUCE_ONLY_NONE,
     "REDUCE_ONLY": dex_pb2.REDUCE_ONLY,
     "TP_FROM_POSITION": dex_pb2.TP_FROM_POSITION,
     "SL_FROM_POSITION": dex_pb2.SL_FROM_POSITION,
 }
 TRIGGER_TYPE = {
+    "NONE": dex_pb2.TRIGGER_NONE,
     "LAST_PRICE": dex_pb2.LAST_PRICE,
     "MARK_PRICE": dex_pb2.MARK_PRICE,
     "INDEX_PRICE": dex_pb2.INDEX_PRICE,
@@ -30,6 +45,38 @@ def place_orders(orders):
     message = dex_pb2.MsgPlaceOrders(
         orders=[_place_order(order) for order in orders]
     )
+    return message.SerializeToString()
+
+
+def replace_order(order):
+    return _replace_order(order).SerializeToString()
+
+
+def place_bracket_order(orders):
+    if len(orders) not in (2, 3):
+        raise ValueError("place_bracket_order requires 2 or 3 orders")
+
+    message = dex_pb2.MsgPlaceBracketOrder(
+        main_order=_place_order(orders[0])
+    )
+    for order in orders[1:]:
+        reduce_only = _enum(
+            REDUCE_ONLY_OPTION,
+            order.get("reduce_only_option"),
+            "reduce_only_option",
+        )
+        if reduce_only == dex_pb2.TP_FROM_POSITION:
+            if message.HasField("take_profit_order"):
+                raise ValueError("place_bracket_order accepts only one take profit order")
+            message.take_profit_order.CopyFrom(_place_order(order))
+        elif reduce_only == dex_pb2.SL_FROM_POSITION:
+            if message.HasField("stop_loss_order"):
+                raise ValueError("place_bracket_order accepts only one stop loss order")
+            message.stop_loss_order.CopyFrom(_place_order(order))
+        else:
+            raise ValueError(
+                "bracket child reduce_only_option must be TP_FROM_POSITION or SL_FROM_POSITION"
+            )
     return message.SerializeToString()
 
 
@@ -87,7 +134,17 @@ def vault_withdraw(amount, currency_code=1):
 
 
 def _place_order(order):
-    message = dex_pb2.MsgPlaceOrder(
+    return _order_message(dex_pb2.MsgPlaceOrder, order)
+
+
+def _replace_order(order):
+    message = _order_message(dex_pb2.MsgReplaceOrder, order)
+    _set_optional_int(message, "ord_id", order.get("ord_id"))
+    return message
+
+
+def _order_message(message_cls, order):
+    message = message_cls(
         symbol_code=order["symbol_code"],
         ord_px=str(order["px"]),
         ord_qty=str(order["qty"]),
@@ -139,10 +196,25 @@ def _set_optional_enum(message, field, values, value, name):
 
 
 def _enum(values, value, name):
+    if name == "ord_type" and _is_display_only_ord_type(value):
+        display_only = ", ".join(sorted(DISPLAY_ONLY_ORD_TYPE))
+        raise ValueError(
+            f"{name} contains display-only values that cannot be used in requests: "
+            f"{display_only}"
+        )
     if isinstance(value, int):
+        if value not in values.values():
+            allowed = ", ".join(sorted(values))
+            raise ValueError(f"{name} must be one of: {allowed}")
         return value
     try:
         return values[value]
     except KeyError as exc:
         allowed = ", ".join(sorted(values))
         raise ValueError(f"{name} must be one of: {allowed}") from exc
+
+
+def _is_display_only_ord_type(value):
+    if isinstance(value, int):
+        return value in DISPLAY_ONLY_ORD_TYPE.values()
+    return value in DISPLAY_ONLY_ORD_TYPE
