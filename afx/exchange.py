@@ -89,16 +89,19 @@ class ExchangeClient:
         self,
         destination,
         amount,
+        withdraw_sequence=None,
         expiry_seconds=3600,
         nonce=None,
         expiry_after=None,
     ):
         nonce = self._nonce(nonce)
+        withdraw_sequence = int(withdraw_sequence if withdraw_sequence is not None else nonce)
         expiry_after = self._expiry_after(expiry_after, expiry_seconds)
         action = {
             "type": "withdraw",
             "destination": destination,
             "amount": str(amount),
+            "withdrawSequence": withdraw_sequence,
         }
         signature = sign_master_payload(
             self._wallet,
@@ -109,6 +112,7 @@ class ExchangeClient:
                 "dexChain": self._environment.dex_chain,
                 "destination": destination,
                 "amount": str(amount),
+                "withdrawSequence": withdraw_sequence,
                 "nonce": nonce,
                 "expiryAfter": int(expiry_after or 0),
             },
