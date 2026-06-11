@@ -95,7 +95,9 @@ class ExchangeClient:
         expiry_after=None,
     ):
         nonce = self._nonce(nonce)
-        withdraw_sequence = int(withdraw_sequence if withdraw_sequence is not None else nonce)
+        withdraw_sequence = int(
+            withdraw_sequence if withdraw_sequence is not None else nonce // 1000
+        )
         expiry_after = self._expiry_after(expiry_after, expiry_seconds)
         action = {
             "type": "withdraw",
@@ -368,19 +370,19 @@ class ExchangeClient:
         return self._agent_request(
             {
                 "type": "vaultDeposit",
+                "vault": vault_address,
                 "amount": str(amount),
                 "currencyCode": currency_code,
             },
-            protobuf.vault_deposit(amount, currency_code),
+            protobuf.vault_deposit(vault_address, amount, currency_code),
             nonce=nonce,
             expiry_after=expiry_after,
-            vault_address=vault_address,
         )
 
     def vault_withdraw(
         self,
         vault_address,
-        amount,
+        share,
         currency_code=1,
         nonce=None,
         expiry_after=None,
@@ -388,13 +390,13 @@ class ExchangeClient:
         return self._agent_request(
             {
                 "type": "vaultWithdraw",
-                "amount": str(amount),
+                "vault": vault_address,
+                "share": str(share),
                 "currencyCode": currency_code,
             },
-            protobuf.vault_withdraw(amount, currency_code),
+            protobuf.vault_withdraw(vault_address, share, currency_code),
             nonce=nonce,
             expiry_after=expiry_after,
-            vault_address=vault_address,
         )
 
     def _agent_request(
