@@ -318,6 +318,72 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(captured["message"]["withdrawSequence"], 789)
         self.assertEqual(captured["message"]["nonce"], 123)
 
+    def test_withdraw_defaults_sequence_to_unix_seconds(self):
+        from afx import AfxClient
+
+        captured = {}
+
+        def fake_sign_master_payload(wallet, environment, primary_type, type_fields, message):
+            captured["message"] = message
+            return {"r": "0x1", "s": "0x2", "v": 27}
+
+        client = AfxClient.from_env(testnet=True, transport=self.transport)
+        with patch("afx.exchange.sign_master_payload", fake_sign_master_payload):
+            client.exchange.withdraw(
+                destination="0x0000000000000000000000000000000000000001",
+                amount="3.5",
+                nonce=1_781_169_100_744,
+                expiry_after=1_781_172_700_744,
+            )
+
+        _, body = self.transport.post_calls[-1]
+        self.assertEqual(body["action"]["withdrawSequence"], 1_781_169_100)
+        self.assertEqual(captured["message"]["withdrawSequence"], 1_781_169_100)
+
+    def test_vault_deposit_uses_action_vault_not_outer_vault_address(self):
+        from afx import AfxClient
+
+        client = AfxClient.from_env(testnet=True, transport=self.transport)
+        client.exchange.vault_deposit(
+            vault_address="0x0000000000000000000000000000000000000002",
+            amount="10",
+            nonce=1000,
+        )
+
+        _, body = self.transport.post_calls[-1]
+        self.assertEqual(
+            body["action"],
+            {
+                "type": "vaultDeposit",
+                "vault": "0x0000000000000000000000000000000000000002",
+                "amount": "10",
+                "currencyCode": 1,
+            },
+        )
+        self.assertNotIn("vaultAddress", body)
+
+    def test_vault_withdraw_uses_share_and_action_vault(self):
+        from afx import AfxClient
+
+        client = AfxClient.from_env(testnet=True, transport=self.transport)
+        client.exchange.vault_withdraw(
+            vault_address="0x0000000000000000000000000000000000000002",
+            share="1.23",
+            nonce=1001,
+        )
+
+        _, body = self.transport.post_calls[-1]
+        self.assertEqual(
+            body["action"],
+            {
+                "type": "vaultWithdraw",
+                "vault": "0x0000000000000000000000000000000000000002",
+                "share": "1.23",
+                "currencyCode": 1,
+            },
+        )
+        self.assertNotIn("vaultAddress", body)
+
     def test_approve_agent_has_no_referral_code_parameter(self):
         from afx import ExchangeClient
 

@@ -154,6 +154,42 @@ class ProtobufTests(unittest.TestCase):
 
         self.assertEqual(actual, expected)
 
+    def test_vault_deposit_serialization_includes_vault_address(self):
+        from afx.utils import protobuf
+        from afx.protos import dex_pb2
+
+        expected = dex_pb2.MsgVaultDeposit(
+            vault="0x0000000000000000000000000000000000000002",
+            amount="10",
+            currency_code=1,
+        ).SerializeToString()
+
+        actual = protobuf.vault_deposit(
+            "0x0000000000000000000000000000000000000002",
+            "10",
+            1,
+        )
+
+        self.assertEqual(actual, expected)
+
+    def test_vault_withdraw_serialization_uses_share(self):
+        from afx.utils import protobuf
+        from afx.protos import dex_pb2
+
+        expected = dex_pb2.MsgVaultWithdraw(
+            vault="0x0000000000000000000000000000000000000002",
+            share="1.23",
+            currency_code=1,
+        ).SerializeToString()
+
+        actual = protobuf.vault_withdraw(
+            "0x0000000000000000000000000000000000000002",
+            "1.23",
+            1,
+        )
+
+        self.assertEqual(actual, expected)
+
     def test_display_only_order_types_cannot_be_used_in_requests(self):
         from afx.utils import protobuf
         from afx.protos import dex_pb2

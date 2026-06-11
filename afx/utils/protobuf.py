@@ -119,16 +119,18 @@ def bind_referral(code):
     return dex_pb2.MsgBindReferral(referral_code=code).SerializeToString()
 
 
-def vault_deposit(amount, currency_code=1):
+def vault_deposit(vault_address, amount, currency_code=1):
     return dex_pb2.MsgVaultDeposit(
+        vault=vault_address,
         amount=str(amount),
         currency_code=currency_code,
     ).SerializeToString()
 
 
-def vault_withdraw(amount, currency_code=1):
+def vault_withdraw(vault_address, share, currency_code=1):
     return dex_pb2.MsgVaultWithdraw(
-        amount=str(amount),
+        vault=vault_address,
+        share=str(share),
         currency_code=currency_code,
     ).SerializeToString()
 
